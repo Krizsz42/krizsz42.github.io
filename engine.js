@@ -1772,7 +1772,7 @@ async function subscribeGoals(){
     if(!r.ok) throw new Error('subscribe '+r.status);
     setNotifMsg('✅ Listo, te avisaré de los goles.','ok');
     const b=document.getElementById('notifBtn'); if(b) b.textContent='🔔 Notificaciones activadas';
-  }catch(e){ setNotifMsg('No se pudo activar: '+(e&&e.message||e),'err'); }
+  }catch(e){ console.error('push subscribe error', e); setNotifMsg('No se pudo activar: '+((e&&e.name)?e.name+' · ':'')+((e&&e.message)||e),'err'); }
 }
 // refleja estado si ya estaba suscrito
 async function initNotifState(){
