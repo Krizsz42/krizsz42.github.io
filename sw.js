@@ -33,3 +33,29 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
   );
 });
+
+// ===== Notificaciones push (goles) =====
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (_) { data = { body: e.data && e.data.text() }; }
+  const title = data.title || '⚽ ¡Gol!';
+  const opts = {
+    body: data.body || 'Hubo un gol en un partido.',
+    icon: './favicon.png',
+    badge: './favicon.png',
+    tag: data.tag || 'goal',
+    renotify: true,
+    data: { url: data.url || './' }
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    clients.matchAll({ type: 'window' }).then(cs => {
+      for (const c of cs) { if ('focus' in c) return c.focus(); }
+      if (clients.openWindow) return clients.openWindow(target);
+    })
+  );
+});

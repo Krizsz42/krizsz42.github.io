@@ -1748,6 +1748,40 @@ function renderTournament(stat,iters,rounds){
   host.innerHTML=h;
 }
 
+// ===================== NOTIFICACIONES DE GOL (Web Push · Supabase) =====================
+// ⚠️ Configura estos dos valores tras montar Supabase (ver PUSH-SETUP.md):
+const PUSH = {
+  vapidPublic: 'BNH2-B6aPbFNR_OylfOHvS9VgnnaRAHWHayerI9YsgwsKgmbZCnFK6uZV8M4kDu_fy0hKVvwVeBZzmWLLfXlmJI',    // <-- pega aquí tu VAPID PUBLIC key
+  subscribeUrl: 'https://awzzyvaytagxfcgvemfy.supabase.co/functions/v1/subscribe'    // <-- pega aquí la URL de tu Edge Function "subscribe"
+};
+function urlB64ToUint8Array(b64){
+  const pad='='.repeat((4-b64.length%4)%4); const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(s); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i); return arr;
+}
+function setNotifMsg(m,kind){ const el=document.getElementById('notifMsg'); if(el){ el.textContent=m; el.style.color=kind==='ok'?'var(--acc)':kind==='err'?'var(--red)':'var(--mut)'; } }
+async function subscribeGoals(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){ setNotifMsg('Este dispositivo/navegador no soporta notificaciones push.','err'); return; }
+  if(!PUSH.vapidPublic || !PUSH.subscribeUrl){ setNotifMsg('Falta configurar Supabase (VAPID + URL) en engine.js. Mira PUSH-SETUP.md.','err'); return; }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ setNotifMsg('Permiso denegado. Actívalo en Ajustes del sistema.','err'); return; }
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){ sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlB64ToUint8Array(PUSH.vapidPublic) }); }
+    const r=await fetch(PUSH.subscribeUrl,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(sub) });
+    if(!r.ok) throw new Error('subscribe '+r.status);
+    setNotifMsg('✅ Listo, te avisaré de los goles.','ok');
+    const b=document.getElementById('notifBtn'); if(b) b.textContent='🔔 Notificaciones activadas';
+  }catch(e){ setNotifMsg('No se pudo activar: '+(e&&e.message||e),'err'); }
+}
+// refleja estado si ya estaba suscrito
+async function initNotifState(){
+  try{ if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+    const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription();
+    if(sub && Notification.permission==='granted'){ const b=document.getElementById('notifBtn'); if(b)b.textContent='🔔 Notificaciones activadas'; }
+  }catch(e){}
+}
+
 // ===================== ARMA TU CARTILLA (bet builder) =====================
 let CART=[];   // cada item: {id, A, B, R, corTot, yelTot, sel:[keys]}
 let CPICK_A='', CPICK_B='';
@@ -2022,6 +2056,7 @@ async function autoSyncResults(){
 }
 setTimeout(autoSyncResults, 800);                 // autocarga al abrir (en segundo plano)
 setInterval(autoSyncResults, 180000);             // refresco de resultados terminados cada 3 min
+initNotifState();                                 // refleja si ya activaste las notificaciones de gol
 
 // ===== marcador EN VIVO de los partidos en juego (autorefresco cada 30 s) =====
 async function fetchLive(){
