@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Rocky Predictor · Mundial 2026</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0a0a0c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Rocky Predictor" />
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="icon" href="favicon.ico" />
+<link rel="apple-touch-icon" href="favicon.png" />
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#151318; --panel2:#201c24; --line:#39312a;
+    --txt:#f3eede; --mut:#b0a890; --acc:#e6b53c; --acc2:#ffd76a;
+    --red:#ff5d6c; --blue:#3da5ff; --gray:#8a8478;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:"Segoe UI",system-ui,Arial,sans-serif;
+    background:linear-gradient(160deg,#0d0c10,#070608); color:var(--txt); min-height:100vh; padding:28px 16px;}
+  .wrap{max-width:1560px; margin:0 auto}
+  header h1{margin:0 0 4px; font-size:26px; letter-spacing:.3px; color:var(--acc); display:flex; align-items:center; flex-wrap:wrap; gap:4px}
+  header p{margin:0; color:var(--mut); font-size:13px}
+  header{border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:4px}
+  .brand-logo{height:32px; width:32px; object-fit:contain; border-radius:7px; margin-right:6px}
+  /* marca de agua del logo detrás de los resultados */
+  #results{position:relative; overflow:hidden}
+  #results::before{content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:240px; height:240px; background:url('favicon.ico') center/contain no-repeat; opacity:.14; pointer-events:none; z-index:0}
+  #results>*{position:relative; z-index:1}
+  .grid{display:grid; grid-template-columns:360px minmax(0,1fr) 440px; gap:18px; margin-top:22px; align-items:start}
+  @media(max-width:1240px){.grid{grid-template-columns:320px minmax(0,1fr)} #history{grid-column:1 / -1}}
+  @media(max-width:880px){.grid{grid-template-columns:1fr} #history{grid-column:auto}}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px}
+  .card h2{margin:0 0 6px; font-size:15px; text-transform:uppercase; letter-spacing:1px; color:var(--acc2)}
+  .tabs{display:flex; gap:8px; margin-bottom:14px}
+  .tab{flex:1; text-align:center; padding:9px; border-radius:9px; cursor:pointer; font-size:13px; font-weight:600;
+    background:var(--panel2); border:1px solid var(--line); color:var(--mut)}
+  .tab.on{background:var(--acc); color:#241a06; border-color:var(--acc)}
+  label{display:block; font-size:12px; color:var(--mut); margin:12px 0 5px}
+  input[type=text],input[type=number],select{width:100%; background:var(--panel2); border:1px solid var(--line);
+    color:var(--txt); border-radius:9px; padding:10px 11px; font-size:14px}
+  input:focus,select:focus{outline:none; border-color:var(--acc)}
+  .row{display:flex; gap:10px}
+  .row>div{flex:1}
+  input[type=range]{width:100%}
+  .rho-val{float:right; color:var(--acc2); font-weight:600}
+  .btns{display:flex; gap:10px; margin-top:18px}
+  button{flex:1; cursor:pointer; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:600; transition:.15s}
+  .go{background:var(--acc); color:#241a06}
+  .go:hover{filter:brightness(1.08)}
+  .ghost{background:transparent; border:1px solid var(--line); color:var(--txt)}
+  .ghost:hover{border-color:var(--acc)}
+  .presets{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+  .chip{font-size:12px; padding:6px 10px; background:var(--panel2); border:1px solid var(--line); border-radius:20px; cursor:pointer; color:var(--mut)}
+  .chip:hover{border-color:var(--acc); color:var(--txt)}
+  /* ===== selector visual de equipos (banderas, lado a lado) ===== */
+  .picker-head{display:flex; align-items:stretch; gap:8px; margin:4px 0 12px}
+  .picker-side{flex:1; min-width:0; background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:9px 11px; text-align:center}
+  .picker-side.side-a{border-color:rgba(61,165,255,.5); box-shadow:inset 0 0 0 1px rgba(61,165,255,.12)}
+  .picker-side.side-b{border-color:rgba(255,93,108,.5); box-shadow:inset 0 0 0 1px rgba(255,93,108,.12)}
+  .picker-tag{display:block; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); margin-bottom:4px}
+  .picker-side.side-a .picker-tag{color:var(--blue)}
+  .picker-side.side-b .picker-tag{color:var(--red)}
+  .picker-sel{font-size:16px; font-weight:700; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .picker-vs{align-self:center; font-size:12px; font-weight:800; color:var(--acc2); flex:0 0 auto}
+  .picker-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .picker-col{max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:11px; padding:6px; background:var(--panel2)}
+  .picker-col::-webkit-scrollbar{width:7px}
+  .picker-col::-webkit-scrollbar-thumb{background:var(--line); border-radius:6px}
+  #colA{border-top:3px solid var(--blue)}
+  #colB{border-top:3px solid var(--red)}
+  .team-opt{display:flex; align-items:center; gap:7px; padding:7px 8px; border-radius:8px; cursor:pointer; font-size:13px;
+    color:var(--txt); border:1px solid transparent; line-height:1.2}
+  .team-opt:hover{background:var(--panel)}
+  .team-opt .fl{font-size:17px; flex:0 0 auto}
+  .team-opt .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .team-opt.sel-a{background:rgba(61,165,255,.18); border-color:var(--blue); font-weight:700}
+  .team-opt.sel-b{background:rgba(255,93,108,.18); border-color:var(--red); font-weight:700}
+  .team-opt.taken{opacity:.32; pointer-events:none}
+  .team-opt.hide{display:none}
+  .matchline{font-size:20px; font-weight:700; text-align:center; margin:2px 0 16px}
+  .matchline small{color:var(--mut); font-weight:400; font-size:12px; display:block; margin-top:3px}
+  .bar{height:34px; border-radius:8px; display:flex; overflow:hidden; margin:6px 0 4px; background:var(--panel2)}
+  .bar span{display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#08111f; white-space:nowrap}
+  .seg-h{background:var(--blue)} .seg-d{background:var(--gray)} .seg-a{background:var(--red)}
+  .legend{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); margin-bottom:14px}
+  .legend b{display:block; font-size:15px; color:var(--txt)}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--line)}
+  th{color:var(--mut); font-weight:500; font-size:11px; text-transform:uppercase}
+  td.r,th.r{text-align:right}
+  .mk{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .pill{background:var(--panel2); border-radius:9px; padding:9px 11px; display:flex; justify-content:space-between; font-size:13px}
+  .pill b{color:var(--acc)}
+  .conf{display:inline-block; padding:5px 12px; border-radius:20px; font-weight:700; font-size:13px}
+  .c-alta{background:rgba(33,208,122,.18); color:var(--acc); border:1px solid var(--acc)}
+  .c-media{background:rgba(255,210,63,.16); color:var(--acc2); border:1px solid var(--acc2)}
+  .c-baja{background:rgba(255,93,108,.16); color:var(--red); border:1px solid var(--red)}
+  .sub{font-size:12px; color:var(--mut); margin-top:8px; line-height:1.5}
+  .xg{display:flex; gap:14px; justify-content:center; margin:4px 0 10px}
+  .xg div{text-align:center}
+  .xg b{font-size:26px; display:block; color:var(--acc2)}
+  .xg small{color:var(--mut); font-size:11px}
+  .hidden{display:none}
+  .predscore{text-align:center;font-size:30px;font-weight:800;color:var(--acc);margin:6px 0 2px;letter-spacing:.5px}
+  .predscore small{display:block;font-size:12px;color:var(--mut);font-weight:400;margin-top:5px;letter-spacing:0}
+  .hist-empty{font-size:12px;color:var(--gray);margin-top:10px}
+  .hist-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px}
+  .hist-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;align-items:baseline}
+  .hist-top b{color:var(--txt)}
+  .hist-meta{font-size:11px;color:var(--gray);margin-top:2px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .badge{font-size:11px;padding:3px 9px;border-radius:14px;font-weight:600;white-space:nowrap}
+  .badge.ok{background:rgba(33,208,122,.16);color:var(--acc);border:1px solid rgba(33,208,122,.4)}
+  .badge.no{background:rgba(255,93,108,.16);color:var(--red);border:1px solid rgba(255,93,108,.4)}
+  .res-in{display:flex;gap:6px;align-items:center;margin-top:9px;flex-wrap:wrap}
+  .res-in input{width:54px;text-align:center;padding:7px 6px}
+  .res-in span{color:var(--mut);font-size:13px}
+  .res-in button{flex:0 0 auto;padding:7px 13px;font-size:13px}
+  .del-x{background:none;border:none;color:var(--gray);cursor:pointer;font-size:16px;padding:0 4px;flex:0 0 auto}
+  .del-x:hover{color:var(--red)}
+  .learn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+  .learn-cell{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px}
+  .learn-cell small{display:block;color:var(--mut);font-size:11px;margin-bottom:3px}
+  .learn-cell b{font-size:17px;color:var(--txt)}
+  .learn-toggle{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--mut);cursor:pointer}
+  .learn-toggle input{width:auto}
+  .hist-row{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:7px;cursor:pointer;font-size:13px}
+  .hist-row:hover{border-color:var(--acc)}
+  .hr-match{font-weight:700;color:var(--txt);flex:0 0 auto}
+  .hr-real{color:var(--mut);font-size:12px;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hr-icons{display:flex;gap:3px;flex:0 0 auto;align-items:center}
+  .hr-dot{width:17px;height:17px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+  .hr-dot.ok{background:rgba(33,208,122,.2);color:var(--acc)}
+  .hr-dot.no{background:rgba(255,93,108,.2);color:var(--red)}
+  .hr-pend{color:var(--acc2);font-size:11px;font-weight:600;flex:0 0 auto}
+  .chev{color:var(--gray);flex:0 0 auto;font-size:11px}
+  .hist-detail{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px;margin-top:4px}
+  .heatmap-note{font-size:11px;color:var(--mut);margin:2px 0 7px;line-height:1.4}
+  .heatwrap{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-width:460px}
+  .heatcell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;color:var(--txt);line-height:1.15}
+  .hc-sc{font-size:13px;font-weight:700}
+  .hc-p{font-size:10px;color:rgba(232,236,246,.8)}
+  .note{font-size:11px; color:var(--gray); margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:12px}
+  .warn{font-size:11px; color:var(--acc2); background:rgba(255,210,63,.08); border:1px solid rgba(255,210,63,.3);
+    border-radius:8px; padding:9px 11px; margin-top:10px; line-height:1.5}
+  .ask{background:var(--panel2); border:1px dashed var(--line); border-radius:10px; padding:12px; margin-top:10px; font-size:12px; color:var(--mut); white-space:pre-wrap; font-family:monospace}
+  .auto-out{background:var(--panel2); border-radius:9px; padding:11px; margin-top:12px; font-size:12px; color:var(--mut); line-height:1.6}
+  .auto-out b{color:var(--txt)}
+  h3.sec{font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); margin:16px 0 8px}
+  .noisy{font-size:10px; color:var(--red); font-weight:600; text-transform:none; letter-spacing:0; margin-left:6px}
+  .twocol{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .statbox{background:var(--panel2); border-radius:9px; padding:11px}
+  .statbox h4{margin:0 0 8px; font-size:13px; color:var(--txt)}
+  .statrow{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); padding:3px 0}
+  .statrow b{color:var(--txt)}
+  details.adv{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+  details.adv>summary{cursor:pointer;padding:11px 13px;font-size:13px;font-weight:600;color:var(--mut);list-style:none}
+  details.adv>summary::-webkit-details-marker{display:none}
+  details.adv>summary::after{content:'▸';float:right;color:var(--gray)}
+  details.adv[open]>summary{color:var(--txt);border-bottom:1px solid var(--line)}
+  details.adv[open]>summary::after{content:'▾'}
+  details.adv .adv-body{padding:12px 13px}
+  details.adv .adv-body .sec:first-child{margin-top:0}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;margin-right:7px;vertical-align:-1px;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .scorewrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .scorewrap>table{flex:1 1 210px}
+  .scorewrap>div{flex:1 1 290px}
+  #fab{display:none}
+  .printonly{display:none}
+  /* navegación entre vistas */
+  .nav{display:flex; gap:8px; margin:16px 0 2px; flex-wrap:wrap}
+  .navtab{cursor:pointer; padding:11px 20px; border-radius:11px; font-weight:700; font-size:14px;
+    background:var(--panel2); border:1px solid var(--line); color:var(--mut)}
+  .navtab.on{background:var(--acc); color:#241a06; border-color:var(--acc)}
+  .navtab:hover{border-color:var(--acc); color:var(--txt)}
+  .navtab.on:hover{color:#241a06}
+  /* ===== barra EN VIVO (partidos en juego, autorefresco) ===== */
+  .livebar{margin:14px 0 0; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px}
+  .livebar.haslive{background:linear-gradient(90deg,rgba(255,93,108,.13),var(--panel)); border-color:rgba(255,93,108,.45)}
+  .live-h{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:800; letter-spacing:1px; color:var(--red); text-transform:uppercase; margin-bottom:8px}
+  .live-dot{width:9px; height:9px; border-radius:50%; background:var(--red); animation:livepulse 1.4s infinite}
+  @keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(255,93,108,.55)}70%{box-shadow:0 0 0 7px rgba(255,93,108,0)}100%{box-shadow:0 0 0 0 rgba(255,93,108,0)}}
+  .live-cards{display:flex; gap:10px; overflow-x:auto; padding-bottom:2px}
+  .live-card{flex:0 0 auto; min-width:185px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:9px 11px; cursor:pointer; transition:.12s}
+  .live-card:hover{border-color:var(--acc); transform:translateY(-1px)}
+  .live-card.in{border-color:rgba(255,93,108,.5)}
+  .live-card.post{border-color:rgba(33,208,122,.35)}
+  .live-card.post .live-min{color:var(--acc)}
+  .live-card.pre{opacity:.9}
+  .live-card.pre .live-min{color:var(--mut)}
+  /* ===== panel En vivo vs predicción ===== */
+  .lc-wrap{border:1px solid rgba(255,93,108,.4); background:linear-gradient(90deg,rgba(255,93,108,.10),var(--panel2)); border-radius:12px; padding:12px 14px; margin:2px 0 14px}
+  .lc-wrap.post{border-color:rgba(33,208,122,.4); background:linear-gradient(90deg,rgba(33,208,122,.10),var(--panel2))}
+  .lc-top{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .lc-min{font-size:11px; font-weight:800; letter-spacing:.5px; color:var(--red); text-transform:uppercase}
+  .lc-wrap.post .lc-min{color:var(--acc)}
+  .lc-score{font-size:24px; font-weight:800; color:var(--txt)}
+  .lc-score b{color:var(--acc)}
+  .lc-score .pen{font-size:13px; color:var(--acc2); font-weight:700}
+  .lc-goals{margin:8px 0 2px}
+  .lc-goal{font-size:13px; padding:2px 0; color:var(--txt)}
+  .lc-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-top:10px}
+  .lc-cell{background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:8px 10px}
+  .lc-cell small{display:block; color:var(--mut); font-size:11px; margin-bottom:2px}
+  .lc-cell b{font-size:17px; color:var(--txt)}
+  .lc-cell .mdl{font-size:11px; color:var(--mut); font-weight:400; margin-left:5px}
+  .lc-verdict{margin-top:10px; font-size:12.5px; line-height:1.5; border-top:1px solid var(--line); padding-top:9px}
+  .lc-pens{margin:6px 0 0; background:rgba(255,210,63,.06); border:1px solid rgba(255,210,63,.25); border-radius:9px; padding:8px 10px}
+  .lc-pen-h{font-size:12px; color:var(--acc2); font-weight:700; margin-bottom:5px}
+  .lc-pen-row{font-size:13px; padding:2px 0; color:var(--txt)}
+  .lc-pen-tm{color:var(--mut); font-weight:600}
+  /* barras de estadística por equipo (estilo Apple Sports) */
+  .lc-bars{display:flex; flex-direction:column; gap:12px; margin-top:12px}
+  .sb-top{display:flex; justify-content:space-between; align-items:center}
+  .sb-a{color:var(--blue); font-weight:800; font-size:15px}
+  .sb-b{color:var(--red); font-weight:800; font-size:15px}
+  .sb-lab{color:var(--mut); font-size:12px}
+  .sb-bar{display:flex; gap:2px; height:7px; border-radius:5px; overflow:hidden; margin-top:4px; background:var(--panel)}
+  .sb-seg-a{background:var(--blue)}
+  .sb-seg-b{background:var(--red)}
+  .sb-bar-m{height:5px; margin-top:3px; opacity:.7}
+  .sb-seg-am{background:#2fb3a8}
+  .sb-seg-bm{background:#e6b53c}
+  .sb-mrow{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--mut); margin-top:5px}
+  .sb-ma{color:#2fb3a8; font-weight:700}
+  .sb-mb{color:#e6b53c; font-weight:700}
+  .sb-mlab{font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--gray)}
+  /* ===== arma tu cartilla (bet builder) ===== */
+  .ct-match{background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:12px; margin-top:12px}
+  .ct-match-h{display:flex; align-items:center; gap:6px; font-weight:700; font-size:14px; margin-bottom:6px}
+  .ct-match-h .del-x{margin-left:auto}
+  .ct-grp{margin-top:9px}
+  .ct-grp-t{font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:5px}
+  .ct-chips{display:flex; flex-wrap:wrap; gap:6px}
+  .ct-chip{font-size:12px; padding:6px 10px; border-radius:18px; background:var(--panel); border:1px solid var(--line); color:var(--txt); cursor:pointer; white-space:nowrap}
+  .ct-chip b{color:var(--mut); font-weight:700; margin-left:4px}
+  .ct-chip:hover{border-color:var(--acc)}
+  .ct-chip.on{background:var(--acc); color:#241a06; border-color:var(--acc)}
+  .ct-chip.on b{color:#5a4500}
+  .ct-slip-m{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px; margin-top:8px}
+  .ct-slip-h{display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; margin-bottom:4px}
+  .ct-slip-h .p{margin-left:auto; color:var(--acc2)}
+  .ct-leg{font-size:13px; padding:3px 0; display:flex; justify-content:space-between; gap:10px; border-top:1px solid var(--line)}
+  .ct-leg span{color:var(--mut)}
+  .ct-total{margin-top:14px; border-top:1px solid var(--line); padding-top:12px; text-align:center}
+  .ct-total-p{font-size:34px; font-weight:800; color:var(--acc); margin:4px 0; letter-spacing:.5px}
+  .ct-days{display:flex; flex-wrap:wrap; gap:7px}
+  .ct-day{flex:0 0 auto; width:auto; font-size:12px; padding:7px 11px; border-radius:18px; background:var(--panel2); border:1px solid var(--line); color:var(--txt); cursor:pointer; display:inline-flex; align-items:center; gap:5px}
+  .ct-day:hover{border-color:var(--acc)}
+  .ct-saved{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px; margin-top:8px}
+  .ct-saved-h{display:flex; align-items:center; gap:6px; font-size:13px}
+  .ct-saved-h .p{margin-left:auto; color:var(--acc2); font-weight:700}
+  .flagimg{width:auto; vertical-align:middle; border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.3); object-fit:cover}
+  .flagimg-fb{vertical-align:middle}
+  .live-min{font-size:11px; color:var(--acc2); font-weight:700; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .live-row{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13px; padding:2px 0}
+  .live-tm{display:flex; align-items:center; gap:6px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .live-tm .fl{font-size:16px; flex:0 0 auto}
+  .live-row b{color:var(--acc); font-size:16px; flex:0 0 auto}
+  .live-card.fin{border-color:rgba(33,208,122,.4)}
+  .live-card.fin .live-min{color:var(--acc)}
+  /* bracket */
+  .bk-grid{display:grid; grid-template-columns:minmax(0,1fr) 440px; gap:18px; align-items:start; margin-top:18px}
+  @media(max-width:1100px){.bk-grid{grid-template-columns:1fr}}
+  .bk-match{display:flex; align-items:center; gap:8px; margin-top:8px}
+  .bk-no{width:24px; text-align:center; color:var(--mut); font-size:12px; flex:0 0 auto}
+  .bk-match input{flex:1; min-width:0}
+  .bk-vs{color:var(--mut); font-size:12px; flex:0 0 auto}
+  .bk-side{display:flex; align-items:center; gap:4px; flex:1; min-width:0}
+  .bk-win{flex:0 0 auto; width:30px; padding:9px 0; border-radius:8px; background:var(--panel);
+    border:1px solid var(--line); color:var(--gray); font-weight:700; cursor:pointer; font-size:13px}
+  .bk-win:hover{border-color:var(--acc); color:var(--acc)}
+  .bk-win.on{background:var(--acc); color:#241a06; border-color:var(--acc)}
+  /* ===== bracket visual estilo "BRACKET 2026" (banderas a los lados + trofeo) ===== */
+  .bkv-card{background:linear-gradient(160deg,#0c1c3d,#070d1f); border:1px solid #21407a; margin-bottom:18px}
+  .bkv-heading{display:block; width:max-content; max-width:92%; margin:0 auto 20px; text-align:center;
+    font-weight:800; letter-spacing:1.5px; font-size:19px; color:#eafff0;
+    background:linear-gradient(90deg,#0f9d58,#16c172); border-radius:30px; padding:8px 20px;
+    box-shadow:0 4px 14px rgba(15,157,88,.35)}
+  .bkv-stage{overflow-x:hidden; padding:4px 2px 8px}
+  .bkv-wrap{display:flex; align-items:center; gap:4px; width:max-content; margin:0 auto; transform-origin:top left}
+  .bkv-half{flex:1 1 0; display:flex}
+  .bkv-L{justify-content:flex-end}
+  .bkv-R{justify-content:flex-end}
+  .bkv-mirror{transform:scaleX(-1)}
+  .bkv-mirror .bkv-team{transform:scaleX(-1)}
+  .bkv-match{display:flex; align-items:center}
+  .bkv-children{display:flex; flex-direction:column; justify-content:center; gap:2px}
+  .bkv-win{flex:0 0 auto}
+  .bkv-conn{flex:0 0 8px; align-self:stretch; position:relative; min-height:20px}
+  .bkv-conn::before{content:''; position:absolute; left:0; top:25%; height:50%; border-left:2px solid rgba(120,160,220,.45)}
+  .bkv-conn::after{content:''; position:absolute; left:0; right:0; top:50%; border-top:2px solid rgba(120,160,220,.45)}
+  .bkv-team{display:flex; align-items:center; gap:4px; width:72px; height:26px; box-sizing:border-box; flex:0 0 auto;
+    background:#11254a; border:1px solid #2b4a82; border-radius:6px; padding:3px 5px}
+  .bkv-team.empty{opacity:.4}
+  .bkv-leaf{display:flex; align-items:center; gap:3px}
+  .bkv-editable{cursor:pointer; transition:.12s}
+  .bkv-editable:hover{border-color:var(--acc2); background:#16305c}
+  .bkv-locked{border-color:#16c172 !important; box-shadow:0 0 0 1px rgba(22,193,114,.45)}
+  .bkv-lock{flex:0 0 auto; width:16px; height:26px; padding:0; line-height:1; cursor:pointer;
+    border:1px solid #2b4a82; border-radius:5px; background:#0d1f40; color:#5e7bb0; font-size:11px; font-weight:700}
+  .bkv-lock:hover{border-color:#16c172; color:#16c172}
+  .bkv-lock.on{background:#16c172; border-color:#16c172; color:#06210f}
+  .bkv-input{width:72px; height:26px; box-sizing:border-box; background:#0d1f40; border:1px solid var(--acc2);
+    color:#eef4ff; border-radius:6px; padding:3px 5px; font-size:9.5px}
+  .bkv-input:focus{outline:none}
+  .bkv-mirror .bkv-input,.bkv-mirror .bkv-lock{transform:scaleX(-1)}
+  .bkv-fl{font-size:14px; flex:0 0 auto; line-height:1}
+  .bkv-nm{font-size:9.5px; color:#dce8ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bkv-center{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:5px; padding:0 4px}
+  .bkv-camp{font-size:11px; font-weight:800; letter-spacing:2px; color:#ffd76a}
+  .bkv-champ .bkv-team{width:96px; height:32px; border-color:#ffd76a; background:#16284c; box-shadow:0 0 0 1px rgba(255,215,106,.3)}
+  .bkv-champ .bkv-nm{font-size:11px; font-weight:700; color:#ffe9a8}
+  .bkv-trophy{font-size:40px; line-height:1; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+  @media(max-width:620px){
+    .bkv-team{width:60px; height:24px; padding:2px 4px}
+    .bkv-nm{font-size:8.5px}
+    .bkv-champ .bkv-team{width:84px; height:28px}
+    .bkv-trophy{font-size:34px}
+    .bkv-lock{width:14px; height:24px}
+    .bkv-input{width:60px; height:24px; font-size:8.5px}
+  }
+  @media(max-width:620px){
+    body{padding:14px 9px}
+    header h1{font-size:21px}
+    header p{font-size:12px}
+    .card{padding:13px;border-radius:11px}
+    .grid{gap:13px;margin-top:16px}
+    .predscore{font-size:23px}
+    .xg b{font-size:22px}
+    .mk{grid-template-columns:1fr}
+    .twocol{grid-template-columns:1fr 1fr;gap:8px}
+    .statbox{padding:9px}
+    .learn-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+    .learn-cell b{font-size:15px}
+    table{font-size:12px}
+    th,td{padding:6px 4px}
+    .matchline{font-size:17px}
+    .pill{font-size:12px;padding:8px 9px}
+    .hist-row{flex-wrap:wrap;gap:6px 8px}
+    .hr-real{flex:1 0 100%;order:3}
+    .hr-match{font-size:12px}
+    .res-in input{width:46px}
+    .btns{flex-wrap:wrap}
+    button{padding:11px 10px}
+    h3.sec{margin:18px 0 7px}
+    .hc-sc{font-size:11px}
+    .hc-p{font-size:9px}
+    #history > div:first-child, #results > div:first-child{flex-direction:column;align-items:stretch;gap:8px}
+    #history > div:first-child > div[style], #results > div:first-child > div[style]{flex:1 1 auto !important;width:100%;display:flex;gap:8px}
+    #history > div:first-child > div[style] button, #results > div:first-child > div[style] button{flex:1 1 0;padding:9px 6px;font-size:12px;white-space:nowrap}
+    #fab{display:inline-flex;position:fixed;right:14px;bottom:14px;z-index:50;width:auto;background:var(--acc);color:#241a06;border:none;border-radius:30px;padding:13px 20px;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.45);align-items:center;gap:6px;cursor:pointer}
+  }
+  @media print{
+    @page{margin:14mm}
+    body{background:#fff; color:#0d1222; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    :root{--panel:#ffffff; --panel2:#f4f6fa; --line:#cdd4e2; --txt:#0d1222; --mut:#3d4663; --gray:#5a6480; --acc2:#8a6d00}
+    .noprint,#inputCard{display:none !important}
+    .grid{display:block !important; margin:0}
+    .card{border:none; padding:0}
+    .wrap{max-width:100%}
+    h3.sec{break-after:avoid}
+    table,.statbox,.bar{break-inside:avoid}
+    .printonly{display:block; margin-top:18px; font-size:11px; color:#5a6480; border-top:1px solid #cdd4e2; padding-top:10px; line-height:1.5}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><img src="favicon.ico" class="brand-logo" alt="Logo Rocky Predictor" />Rocky Predictor <span style="color:var(--acc2)">· Mundial 2026</span></h1>
+    <p>Poisson bivariado + ajuste Dixon-Coles · distribución exacta del modelo · uso educativo / pronósticos</p>
+  </header>
+
+  <div class="nav">
+    <div class="navtab on" id="navMatch" onclick="showView('match')">⚽ Partido</div>
+    <div class="navtab" id="navBracket" onclick="showView('bracket')">🏆 Camino al título</div>
+    <div class="navtab" id="navCart" onclick="showView('cartilla')">🎟️ Arma tu cartilla</div>
+  </div>
+
+  <div id="liveBar" class="livebar hidden"></div>
+
+  <div id="viewMatch">
+  <div class="grid">
+    <!-- ============ PANEL DE ENTRADA ============ -->
+    <div class="card" id="inputCard">
+      <label style="margin:0 0 5px">Competición</label>
+      <select id="compSel" onchange="setComp(this.value)"></select>
+      <h2 style="margin-top:16px">Cargar partido</h2>
+
+      <div class="tabs">
+        <div class="tab on" id="tabAuto" onclick="setMode('auto')">Automático</div>
+        <div class="tab" id="tabMan" onclick="setMode('man')">Manual (preciso)</div>
+      </div>
+
+      <div id="modeAuto">
+        <div class="picker-head">
+          <div class="picker-side side-a">
+            <span class="picker-tag">Equipo A</span>
+            <div class="picker-sel" id="pickSelA">🇧🇪 Bélgica</div>
+          </div>
+          <div class="picker-vs">VS</div>
+          <div class="picker-side side-b">
+            <span class="picker-tag">Equipo B</span>
+            <div class="picker-sel" id="pickSelB">🇮🇷 Irán</div>
+          </div>
+        </div>
+        <input type="text" id="teamFilter" placeholder="🔎 Buscar país..." oninput="filterTeams(this.value)" style="margin-bottom:10px" />
+        <div class="picker-grid">
+          <div class="picker-col" id="colA"></div>
+          <div class="picker-col" id="colB"></div>
+        </div>
+        <input type="hidden" id="selA" value="Bélgica" />
+        <input type="hidden" id="selB" value="Irán" />
+        <datalist id="teamlist"></datalist>
+        <div class="btns"><button class="go" onclick="autoCalc()">Calcular y simular</button></div>
+        <div class="auto-out hidden" id="autoOut"></div>
+        <div class="warn">
+          El modo automático estima a partir de un <b>rating de fuerza</b> por selección (ranking FIFA jun 2026). Es un baseline. <b>No ve</b> lesiones, alineaciones ni el último xG en vivo. Para un partido concreto, la pestaña Manual (calibrada por la IA) es más fiel.
+        </div>
+      </div>
+
+      <div id="modeMan" class="hidden">
+        <div class="row">
+          <div><label>Equipo A (primero)</label><input type="text" id="teamA" value="Bélgica" /></div>
+          <div><label>Equipo B (segundo)</label><input type="text" id="teamB" value="Irán" /></div>
+        </div>
+        <div class="row">
+          <div><label>xG (λ) Equipo A</label><input type="number" id="lamA" value="1.85" step="0.01" min="0.05" max="6" /></div>
+          <div><label>xG (λ) Equipo B</label><input type="number" id="lamB" value="0.72" step="0.01" min="0.05" max="6" /></div>
+        </div>
+        <label>Ajuste Dixon-Coles (ρ) <span class="rho-val" id="rhoVal">-0.060</span></label>
+        <input type="range" id="rho" min="-0.08" max="-0.03" step="0.005" value="-0.06" />
+        <div class="sub">Más negativo (-0.08) = trabado/bloque bajo. Menos negativo (-0.03) = abierto.</div>
+        <div class="btns">
+          <button class="go" onclick="run()">Simular</button>
+          <button class="ghost" onclick="buildAsk()">Pedir calibración a la IA</button>
+        </div>
+        <div id="askBox" class="ask hidden"></div>
+      </div>
+
+      <label style="margin-top:16px">Sede / contexto (opcional)</label>
+      <input type="text" id="ctx" value="Grupo G · Los Ángeles · 21 jun 2026" />
+      <div class="btns"><button class="ghost" onclick="fetchContext()">🔎 Buscar contexto y datos (ESPN)</button></div>
+      <div class="sub" id="ctxMsg"></div>
+
+      <label class="learn-toggle" style="margin-top:14px">
+        <input type="checkbox" id="koToggle" onchange="toggleKO()" /> 🏆 Fase eliminatoria (a una llave): mostrar quién avanza
+      </label>
+
+      <details class="adv">
+        <summary>⚙️ Ajustes avanzados · córners, tarjetas e IA</summary>
+        <div class="adv-body">
+          <h3 class="sec" style="margin-top:2px">Mercados extra (carga los λ reales)</h3>
+          <div class="row">
+            <div><label>Córners λ Local</label><input type="number" id="cornA" value="5.0" step="0.1" min="0" max="15" /></div>
+            <div><label>Córners λ Visita</label><input type="number" id="cornB" value="5.0" step="0.1" min="0" max="15" /></div>
+          </div>
+          <div class="row">
+            <div><label>Árbitro · amarillas λ</label><input type="number" id="cardY" value="4.2" step="0.1" min="0" max="12" /></div>
+            <div><label>Árbitro · rojas λ</label><input type="number" id="cardR" value="0.13" step="0.01" min="0" max="2" /></div>
+          </div>
+          <input type="text" id="refName" placeholder="Nombre del árbitro (opcional)" style="margin-top:8px" />
+          <div class="sub">El árbitro es el predictor #1 de tarjetas. En modo automático estos λ se estiman solos; cárgalos a mano (o pega la respuesta de la IA) para más precisión.</div>
+
+          <label style="margin-top:14px">Pegar respuesta de la IA</label>
+          <textarea id="pasteBox" rows="7" placeholder="Local=&#10;Visita=&#10;Rho=&#10;Corners local=&#10;Corners visita=&#10;Tarjeta arbitro=&#10;Rojas arbitro=" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:10px;font-size:13px;font-family:monospace;resize:vertical"></textarea>
+          <div class="btns"><button class="ghost" onclick="loadPasted()">Cargar valores y simular</button></div>
+          <div id="pasteMsg" class="sub"></div>
+        </div>
+      </details>
+
+      <details class="adv">
+        <summary>📋 Partidos precargados</summary>
+        <div class="adv-body"><div class="presets" id="presets"></div></div>
+      </details>
+
+      <div class="note">
+        Distribución exacta Dixon-Coles (equivalente al Monte Carlo, sin ruido). Córners, remates y tarjetas son <b>más ruidosos que los goles</b>; las tarjetas, el más impredecible de todos.
+      </div>
+    </div>
+
+    <!-- ============ PANEL DE RESULTADOS ============ -->
+    <div class="card" id="results">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <h2 style="margin:0">Resultados</h2>
+        <div style="display:flex;gap:8px;flex:0 0 auto">
+          <button class="ghost noprint" style="padding:8px 12px" onclick="downloadImage()">📷 Imagen</button>
+          <button class="ghost noprint" style="padding:8px 12px" onclick="window.print()">📄 PDF</button>
+        </div>
+      </div>
+      <div class="matchline" id="mTitle">Carga un partido y toca <span style="color:var(--acc)">Simular</span><small id="mCtx"></small></div>
+
+      <div id="liveCompare" class="hidden"></div>
+
+      <div id="out" class="hidden">
+        <h3 class="sec">📊 1X2</h3>
+        <div class="bar" id="bar1x2"></div>
+        <div class="legend">
+          <div><span id="lblH">A</span><b id="pH">–</b></div>
+          <div style="text-align:center">Empate<b id="pD">–</b></div>
+          <div style="text-align:right"><span id="lblA">B</span><b id="pA">–</b></div>
+        </div>
+
+        <div id="koWrap" class="hidden">
+          <h3 class="sec">🏆 Quién avanza (eliminatoria)</h3>
+          <div class="bar" id="koBar"></div>
+          <div class="legend">
+            <div><span id="koLblH">Avanza A</span><b id="koPH">–</b></div>
+            <div style="text-align:right"><span id="koLblA">Avanza B</span><b id="koPA">–</b></div>
+          </div>
+          <div class="sub" id="koTxt"></div>
+        </div>
+
+        <h3 class="sec">🎯 Predicción de marcador</h3>
+        <div class="predscore" id="predScore">–</div>
+        <div class="btns noprint" style="margin-top:6px"><button class="ghost" onclick="savePrediction()">💾 Guardar predicción para seguimiento</button></div>
+        <div class="sub noprint" id="saveMsg"></div>
+
+        <h3 class="sec">⚽ Goles esperados (modelo)</h3>
+        <div class="xg">
+          <div><b id="xgH">–</b><small id="xgHl">A</small></div>
+          <div style="align-self:center;color:var(--mut)">—</div>
+          <div><b id="xgA">–</b><small id="xgAl">B</small></div>
+        </div>
+
+        <h3 class="sec">📈 Mercados de goles</h3>
+        <div class="mk" id="markets"></div>
+
+        <h3 class="sec">🔢 Marcadores más probables</h3>
+        <div class="scorewrap">
+          <table id="scores"><thead><tr><th>Marcador</th><th class="r">Probabilidad</th></tr></thead><tbody></tbody></table>
+          <div id="heatmap"></div>
+        </div>
+
+        <details class="adv" style="margin-top:16px">
+          <summary>🚩 Posesión, remates y córners <span class="noisy">· más ruidoso</span></summary>
+          <div class="adv-body">
+            <div class="twocol" id="teamStats"></div>
+            <div class="mk" id="cornerMk" style="margin-top:10px"></div>
+          </div>
+        </details>
+
+        <details class="adv">
+          <summary>🟨 Tarjetas <span class="noisy">· depende del árbitro</span></summary>
+          <div class="adv-body"><div id="cardsBox" class="auto-out" style="margin-top:0"></div></div>
+        </details>
+
+        <h3 class="sec">🧭 Índice de confianza (sobre el resultado)</h3>
+        <div id="confBox"></div>
+        <div class="sub" id="confTxt"></div>
+        <div class="printonly"><img src="favicon.ico" style="height:16px;width:16px;object-fit:contain;vertical-align:-3px;margin-right:6px" alt="">Generado con Rocky Predictor · Mundial 2026 (Poisson bivariado + ajuste Dixon-Coles). Uso educativo / pronósticos: son probabilidades, no certezas. Los mercados de córners y tarjetas son más ruidosos que los goles; las tarjetas dependen sobre todo del árbitro.</div>
+      </div>
+    </div>
+
+    <!-- ============ HISTORIAL Y APRENDIZAJE ============ -->
+    <div class="card noprint" id="history">
+    <div style="display:flex;flex-direction:column;align-items:stretch;gap:10px">
+      <h2 style="margin:0">Historial y aprendizaje</h2>
+      <div style="display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap">
+        <button class="ghost" style="padding:8px 14px" onclick="importPlayed()">📥 Importar jugados</button>
+        <button class="ghost" style="padding:8px 14px" onclick="fetchAllPending()">🔎 Buscar pendientes</button>
+        <button class="ghost" style="padding:8px 14px" onclick="clearHistory()">Vaciar historial</button>
+      </div>
+    </div>
+    <div class="sub">Guarda la predicción de un partido, carga el resultado real cuando se juegue y el modelo lleva la cuenta de aciertos (resultado, marcador exacto, over/under y ambos marcan) y va calibrando los goles esperados con lo aprendido. Toca una fila para ver el detalle.</div>
+    <div class="sub" id="importMsg"></div>
+    <div id="learnStats"></div>
+    <div style="margin-top:12px">
+      <label style="font-size:12px;color:var(--mut);display:block;margin-bottom:5px">Cargar resultados pegados — uno por línea (ej: <b>España 4-0 Arabia Saudita</b>)</label>
+      <textarea id="bulkBox" rows="3" placeholder="España 4-0 Arabia Saudita&#10;Uruguay 2-2 Cabo Verde&#10;Bélgica 0-0 Irán" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:10px;font-size:13px;font-family:monospace;resize:vertical"></textarea>
+      <div class="btns"><button class="ghost" onclick="loadBulkResults()">Cargar resultados pegados</button></div>
+      <div class="sub" id="bulkMsg"></div>
+    </div>
+    <div id="histList"></div>
+  </div>
+  </div>
+  <button id="fab" class="noprint" onclick="quickSim()">▶ Simular</button>
+  </div><!-- /viewMatch -->
+
+  <!-- ============ VISTA: CAMINO AL TÍTULO (BRACKET) ============ -->
+  <div id="viewBracket" class="hidden">
+    <div class="card bkv-card">
+      <span class="bkv-heading">🏆 CAMINO AL TÍTULO · BRACKET 2026</span>
+      <div class="sub" style="text-align:center;margin:-8px 0 12px;color:#9fb6dd">
+        Edita directo en el cuadro: <b style="color:#dce8ff">clic en una bandera</b> para cambiar de selección ·
+        <b style="color:#16c172">✓</b> para marcar tu ganador en cualquier fase. Las casillas sin marcar avanzan al favorito del modelo.
+      </div>
+      <div id="bracketVisual" class="bkv-stage"></div>
+    </div>
+    <div class="bk-grid">
+      <div class="card">
+        <h2>Cuadro de eliminatorias</h2>
+        <div class="sub">Usa "🏆 Cuadro Mundial 2026" y acomoda los cruces directamente en el árbol de arriba. Cada llave es un cruce a partido único; el ganador avanza. Con "📥 Cargar ganadores (ESPN)" se traen los resultados reales ya jugados y se marcan como confirmados (no cambia tu orden). Los goles esperados salen del rating de fuerza de cada selección, en sede neutral, y el empate se resuelve por prórroga y penales.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="ghost" onclick="loadBracketESPN()">📥 Cargar ganadores (ESPN)</button>
+          <button class="ghost" onclick="loadWCBracket()">🏆 Cuadro Mundial 2026</button>
+          <button class="ghost" onclick="clearBracket()">Vaciar</button>
+        </div>
+        <div class="sub" id="bkMsg" style="margin-top:8px"></div>
+        <details class="adv" style="margin-top:12px">
+          <summary>✏️ Editar como lista / reordenar cruces</summary>
+          <div class="adv-body">
+            <div class="sub" style="margin-top:0">Útil para reordenar los enfrentamientos. También puedes editar todo directamente en el cuadro visual de arriba.</div>
+            <div id="bracketEditor" style="margin-top:6px"></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Camino al título</h2>
+        <div class="sub">Simulación Monte Carlo del cuadro completo: corre el torneo miles de veces y cuenta con qué frecuencia cada selección llega a cada ronda y se corona campeona. Al simular se cargan los datos reales de ESPN: la <b>forma reciente</b> de cada selección ajusta su fuerza en cada cruce (igual que el modo automático), se aplica la <b>casilla de aprendizaje</b> si está activa, y los partidos <b>ya jugados</b> se respetan como resultados seguros. Tus ✓ de fanático son tu propio pronóstico en el árbol de arriba; aquí abajo ves lo que opina el modelo para compararlo.</div>
+        <div class="row" style="align-items:flex-end;margin-top:10px">
+          <div><label>Simulaciones</label><input type="number" id="bkIters" value="20000" min="1000" max="200000" step="1000" /></div>
+          <div style="flex:0 0 auto"><button class="go" onclick="simTournament()">🏆 Simular torneo</button></div>
+        </div>
+        <div class="sub" id="bkResMsg" style="margin-top:8px"></div>
+        <div id="bracketResults"></div>
+        <div class="note">Es un modelo: las probabilidades dependen del rating de cada selección y de que el cuadro esté bien armado. Reordena las llaves para que coincidan con el bracket real antes de fiarte de los números.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA: ARMA TU CARTILLA (bet builder) ============ -->
+  <div id="viewCartilla" class="hidden">
+    <div class="bk-grid">
+      <div class="card">
+        <h2>Arma tu cartilla</h2>
+        <div class="sub">Agrega partidos (de los del día o a mano), elige mercados en cada uno y el modelo calcula la probabilidad de que <b>toda la cartilla se cumpla</b>, estilo bet builder.</div>
+        <h3 class="sec">📅 Partidos del día <span style="text-transform:none;letter-spacing:0;color:var(--gray)">· toca para agregar</span></h3>
+        <div id="ctDayMatches" class="ct-days"></div>
+        <details class="adv" style="margin-top:6px">
+          <summary>✍️ Elegir a mano</summary>
+          <div class="adv-body">
+            <div class="picker-head">
+              <div class="picker-side side-a"><span class="picker-tag">Equipo A</span><div class="picker-sel" id="ctPickA">—</div></div>
+              <div class="picker-vs">VS</div>
+              <div class="picker-side side-b"><span class="picker-tag">Equipo B</span><div class="picker-sel" id="ctPickB">—</div></div>
+            </div>
+            <input type="text" id="ctFilter" placeholder="🔎 Buscar país..." oninput="filterCartTeams(this.value)" style="margin-bottom:10px" />
+            <div class="picker-grid">
+              <div class="picker-col" id="ctColA"></div>
+              <div class="picker-col" id="ctColB"></div>
+            </div>
+            <input type="hidden" id="cartA" /><input type="hidden" id="cartB" />
+            <div class="btns" style="margin-top:10px"><button class="go" onclick="addCartMatch()">➕ Agregar partido</button></div>
+          </div>
+        </details>
+        <div class="sub" id="cartMsg"></div>
+        <div id="cartMatches"></div>
+      </div>
+      <div class="card">
+        <h2>Tu cartilla</h2>
+        <div id="cartSlip"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="logo.js"></script>
+<script src="engine.js"></script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  }
+</script>
+</body>
+</html>
