@@ -1851,16 +1851,17 @@ function cartLegs(m){
       {k:'BTTSN',grp:'btts',dom:'g',lab:'No',pred:(i,j)=>!(i>0&&j>0)},
     ]},
   ];
-  const cMid=Math.round(m.corTot);
-  const cLegs=[]; [cMid-1.5,cMid-0.5,cMid+0.5,cMid+1.5].filter(L=>L>0).forEach(L=>{
-    cLegs.push({k:'CO'+L,grp:'c'+L,dom:'c',lab:'Over '+L,pred:k=>k>L});
-    cLegs.push({k:'CU'+L,grp:'c'+L,dom:'c',lab:'Under '+L,pred:k=>k<L});
-  });
+  const cLegs=[];
+  for(let L=4.5;L<=16.5;L+=1){
+    cLegs.push({k:'CO'+L,grp:'c',dom:'c',lab:'Over '+L,pred:k=>k>L});
+    cLegs.push({k:'CU'+L,grp:'c',dom:'c',lab:'Under '+L,pred:k=>k<L});
+  }
   groups.push({t:'Córners', legs:cLegs});
-  const yLegs=[]; [3.5,4.5,5.5].forEach(L=>{
-    yLegs.push({k:'YO'+L,grp:'y'+L,dom:'y',lab:'Over '+L,pred:k=>k>L});
-    yLegs.push({k:'YU'+L,grp:'y'+L,dom:'y',lab:'Under '+L,pred:k=>k<L});
-  });
+  const yLegs=[];
+  for(let L=0.5;L<=7.5;L+=1){
+    yLegs.push({k:'YO'+L,grp:'y',dom:'y',lab:'Over '+L,pred:k=>k>L});
+    yLegs.push({k:'YU'+L,grp:'y',dom:'y',lab:'Under '+L,pred:k=>k<L});
+  }
   groups.push({t:'Tarjetas amarillas', legs:yLegs});
   groups.forEach(gr=>gr.legs.forEach(l=>{
     l.prob = l.dom==='g'? jointGoals(R,[l.pred]) : (l.dom==='c'? jointPoisson(m.corTot,[l.pred]) : jointPoisson(m.yelTot,[l.pred]));
