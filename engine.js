@@ -502,15 +502,90 @@ function selectAsk(){
 
 // descarga el panel de resultados como imagen PNG (para compartir)
 function downloadImage(){
-  if(typeof html2canvas!=='function'){ alert('No pude cargar la librería de imagen (¿sin internet?). Usa el botón 📄 PDF.'); return; }
   if(!SHARE){ alert('Simula un partido primero.'); return; }
-  const node=buildShareCard(SHARE);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-  html2canvas(node,{backgroundColor:null, scale:2, useCORS:true, logging:false}).then(canvas=>{
-    node.remove();
-    const A=(SHARE.A||'A').replace(/[^a-z0-9]/gi,''), B=(SHARE.B||'B').replace(/[^a-z0-9]/gi,'');
-    const filename='rocky-predictor-'+A+'-vs-'+B+'.png';
-    canvas.toBlob(blob=>{
+  const S=SHARE;
+  const W=600, PR=2, c=document.createElement('canvas');
+  ctx=c.getContext('2d');
+
+  const pct=x=>(100*x).toFixed(1)+'%';
+  const txt=(s,x,y,size,color,weight)=>{ ctx.fillStyle=color; ctx.font=(weight||'400')+' '+size+'px "Segoe UI",system-ui,Arial,sans-serif'; ctx.textBaseline='top'; ctx.fillText(s,x,y); };
+  const scBoxH=S.score2?100:80;
+  const H=490+(S.score2?20:0);
+  c.width=W*PR; c.height=H*PR; ctx.scale(PR,PR);
+
+  const draw=()=>{
+    // fondo degradado
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#16140d'); g.addColorStop(1,'#0a0907');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect?ctx.roundRect(0,0,W,H,16):ctx.rect(0,0,W,H); ctx.fill();
+
+    // header con logo
+    ctx.save();
+    if(typeof LOGO_DATA_URI!=='undefined'&&LOGO_DATA_URI){
+      try{ ctx.globalAlpha=0.06; ctx.drawImage(logoImg, W-130, 10, 110, 110); ctx.restore(); ctx.save(); }catch(e){}
+    }
+    ctx.restore();
+    txt('Rocky Predictor · Mundial 2026', 26, 26, 13, '#ffd76a', '700');
+
+    // equipos
+    txt(S.A, 26, 56, 26, '#f3eede', '800');
+    const vsX=26+ctx.measureText(S.A).width+12;
+    txt('vs', vsX, 58, 22, '#b0a890', '400');
+    txt(S.B, vsX+ctx.measureText('vs').width+12, 56, 26, '#f3eede', '800');
+
+    // contexto
+    if(S.ctx) txt(S.ctx, 26, 92, 12, '#b0a890');
+
+    // 1X2 boxes
+    const boxY=118, bh=56, gap=10, bw=(W-52-gap*2)/3;
+    const box=(x,t,v,colC)=>{
+      ctx.fillStyle='#211d12'; ctx.beginPath(); ctx.roundRect?ctx.roundRect(x,boxY,bw,bh,10):ctx.rect(x,boxY,bw,bh); ctx.fill();
+      ctx.fillStyle='#b0a890'; ctx.font='400 11px "Segoe UI",system-ui,Arial,sans-serif'; ctx.textBaseline='top'; ctx.fillText(t,x+10,boxY+8);
+      ctx.fillStyle=colC; ctx.font='800 20px "Segoe UI",system-ui,Arial,sans-serif'; ctx.fillText(v,x+10,boxY+26);
+    };
+    box(26,'Gana '+S.A,pct(S.h),'#3da5ff');
+    box(26+bw+gap,'Empate',pct(S.d),'#7c89a8');
+    box(26+(bw+gap)*2,'Gana '+S.B,pct(S.a),'#ff5d6c');
+
+    // marcador más probable
+    const scY=boxY+bh+14;
+    ctx.fillStyle='#211d12'; ctx.beginPath(); ctx.roundRect?ctx.roundRect(26,scY,W-52,scBoxH,10):ctx.rect(26,scY,W-52,scBoxH); ctx.fill();
+    txt('Marcador más probable', 36, scY+8, 11, '#b0a890');
+    txt(S.score, 36, scY+26, 24, '#e6b53c', '800');
+    const scPx=36+ctx.measureText(S.score).width+8;
+    txt(pct(S.scoreP), scPx, scY+34, 13, '#b0a890');
+    if(S.score2){
+      txt('2.º: '+S.score2, 36, scY+56, 13, '#b0a890');
+      txt(pct(S.score2P), 36+ctx.measureText('2.º: '+S.score2).width+6, scY+56, 11, '#b0a890');
+      txt('Goles esperados: '+S.xgH.toFixed(2)+' – '+S.xgA.toFixed(2), 36, scY+78, 12, '#b0a890');
+    } else {
+      txt('Goles esperados: '+S.xgH.toFixed(2)+' – '+S.xgA.toFixed(2), 36, scY+58, 12, '#b0a890');
+    }
+
+    // mercados
+    const mkY=scY+scBoxH+14;
+    txt('Mercados más probables', 26, mkY, 12, '#ffd76a', '700');
+    const mkX=(i)=>i%2===0?26:26+(W-60)/2+8, mkYr=(i)=>mkY+18+Math.floor(i/2)*52;
+    const mData=[['Goles',S.goals],['Ambos marcan',S.btts],['Córners',S.corner],['Tarjetas amarillas',S.card]];
+    mData.forEach((d,i)=>{
+      if(!d[1])return;
+      const x=mkX(i), y=mkYr(i);
+      ctx.fillStyle='#211d12'; ctx.beginPath(); ctx.roundRect?ctx.roundRect(x,y,(W-60)/2,44,9):ctx.rect(x,y,(W-60)/2,44); ctx.fill();
+      txt(d[0], x+10, y+6, 11, '#b0a890');
+      txt(d[1], x+10, y+22, 14, '#e6b53c', '700');
+    });
+
+    // footer
+    ctx.fillStyle='#8a8478'; ctx.font='10px "Segoe UI",system-ui,Arial,sans-serif'; ctx.textBaseline='top';
+    ctx.fillText('Rocky Predictor · Poisson bivariado + Dixon-Coles · uso educativo · son probabilidades, no certezas.', 26, H-36);
+
+    exportBlob();
+  };
+
+  const exportBlob=()=>{
+    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    const filename='rocky-predictor-'+((S.A||'A').replace(/[^a-z0-9]/gi,''))+'-vs-'+((S.B||'B').replace(/[^a-z0-9]/gi,''))+'.png';
+    c.toBlob(blob=>{
       if(!blob){ alert('No se pudo generar la imagen.'); return; }
       if(isIOS && navigator.share && navigator.canShare){
         try {
@@ -525,40 +600,18 @@ function downloadImage(){
       document.body.removeChild(a);
       setTimeout(()=>URL.revokeObjectURL(url), 5000);
     },'image/png');
-  }).catch(()=>{ node.remove(); alert('No se pudo generar la imagen. Usa el botón 📄 PDF.'); });
-}
-// arma una tarjeta diseñada con lo más probable de cada mercado
-function buildShareCard(S){
-  const pct=x=>(100*x).toFixed(1)+'%';
-  const LOGO=(typeof LOGO_DATA_URI!=='undefined'&&LOGO_DATA_URI)?LOGO_DATA_URI:'favicon.ico';
-  const w=document.createElement('div');
-  w.style.cssText='position:fixed;left:-9999px;top:0;width:600px;padding:26px;background:linear-gradient(160deg,#16140d,#0a0907);color:#f3eede;font-family:Segoe UI,system-ui,Arial,sans-serif;border-radius:16px;box-sizing:border-box;border:1px solid #4a3f24;overflow:hidden';
-  const cell=(t,v,col)=>`<div style="flex:1;background:#211d12;border-radius:10px;padding:10px"><div style="font-size:11px;color:#b0a890">${t}</div><div style="font-size:20px;font-weight:800;color:${col}">${v}</div></div>`;
-  const mk=(t,v)=>v?`<div style="background:#211d12;border-radius:9px;padding:10px"><div style="font-size:11px;color:#b0a890">${t}</div><div style="font-size:14px;font-weight:700;color:#e6b53c">${v}</div></div>`:'';
-  w.innerHTML=
-    `<img src="${LOGO}" alt="" style="position:absolute;top:18px;right:20px;width:120px;height:120px;object-fit:contain;opacity:.06;z-index:0;pointer-events:none">`+
-    `<div style="position:relative;z-index:1">`+
-    `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#ffd76a;letter-spacing:1px;text-transform:uppercase;font-weight:700"><img src="${LOGO}" style="height:24px;width:24px;object-fit:contain;border-radius:5px" alt="">Rocky Predictor · Mundial 2026</div>`+
-    `<div style="font-size:26px;font-weight:800;margin:6px 0 2px">${S.A} <span style="color:#b0a890;font-weight:400">vs</span> ${S.B}</div>`+
-    `<div style="font-size:12px;color:#b0a890;margin-bottom:16px">${S.ctx||''}</div>`+
-    `<div style="display:flex;gap:10px;text-align:center;margin-bottom:12px">`+
-      cell('Gana '+S.A, pct(S.h), '#3da5ff')+cell('Empate', pct(S.d), '#7c89a8')+cell('Gana '+S.B, pct(S.a), '#ff5d6c')+
-    `</div>`+
-    `<div style="text-align:center;background:#211d12;border-radius:10px;padding:12px;margin-bottom:14px">`+
-      `<div style="font-size:11px;color:#b0a890">Marcador más probable</div>`+
-      `<div style="font-size:24px;font-weight:800;color:#e6b53c">${S.score} <span style="font-size:13px;color:#b0a890">${pct(S.scoreP)}</span></div>`+
-      (S.score2?`<div style="font-size:13px;color:#b0a890;margin-top:2px">2.º: ${S.score2} <span style="font-size:11px">${pct(S.score2P)}</span></div>`:'')+
-      `<div style="font-size:12px;color:#b0a890;margin-top:4px">Goles esperados: ${S.xgH.toFixed(2)} – ${S.xgA.toFixed(2)}</div>`+
-    `</div>`+
-    `<div style="font-size:12px;color:#ffd76a;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Mercados más probables</div>`+
-    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`+
-      mk('Goles', S.goals)+mk('Ambos marcan', S.btts)+mk('Córners', S.corner)+mk('Tarjetas amarillas', S.card)+
-    `</div>`+
-    `<div style="font-size:10px;color:#8a8478;margin-top:16px;border-top:1px solid #4a3f24;padding-top:10px">🐶 Rocky Predictor · Poisson bivariado + Dixon-Coles · uso educativo / pronósticos: son probabilidades, no certezas.</div>`+
-    `</div>`;
-  document.body.appendChild(w); return w;
-}
+  };
 
+  let logoLoaded=true, logoImg=null;
+  if(typeof LOGO_DATA_URI!=='undefined'&&LOGO_DATA_URI){
+    logoLoaded=false;
+    logoImg=new Image();
+    logoImg.onload=()=>{ logoLoaded=true; draw(); };
+    logoImg.onerror=()=>{ logoLoaded=true; draw(); };
+    logoImg.src=LOGO_DATA_URI;
+  }
+  if(logoLoaded) draw();
+}
 // Pega la respuesta de la IA en el formato y carga todos los campos
 function loadPasted(){
   const txt=pasteBox.value;

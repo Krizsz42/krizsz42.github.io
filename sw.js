@@ -2,7 +2,7 @@
 // Estrategia: network-first para el cascarón (siempre trae lo último si hay internet),
 // con caché de respaldo para uso sin conexión. Sube el número de versión al desplegar cambios.
 const CACHE = 'rocky-predictor-v3';
-const ASSETS = ['./', './index.html', './engine.js', './logo.js', './favicon.ico', './favicon.png', './manifest.json', './html2canvas.min.js'];
+const ASSETS = ['./', './index.html', './engine.js', './logo.js', './favicon.ico', './favicon.png', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
