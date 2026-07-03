@@ -89,39 +89,7 @@ function flagImg(es, px){
   return `<img class="flagimg" src="https://flagcdn.com/${w}/${code}.png" alt="${es}" loading="lazy" style="width:${cw}px;height:${px}px" onerror="this.style.display='none'">`;
 }
 
-// ===================== COMPETICIONES (multi-liga) =====================
-const COMPETITIONS=[
-  {id:'fifa.world',          nombre:'Mundial 2026',        tipo:'torneo',         season:'2026', usaGrupos:true,  ratingsWC:true },
-  {id:'uefa.champions',      nombre:'Champions League',    tipo:'torneo',         season:'2026', usaGrupos:true,  ratingsWC:false},
-  {id:'eng.1',               nombre:'Premier League',      tipo:'liga',           season:'2025', usaGrupos:false, ratingsWC:false},
-  {id:'esp.1',               nombre:'La Liga',             tipo:'liga',           season:'2025', usaGrupos:false, ratingsWC:false},
-  {id:'ita.1',               nombre:'Serie A',             tipo:'liga',           season:'2025', usaGrupos:false, ratingsWC:false},
-  {id:'fra.1',               nombre:'Ligue 1',             tipo:'liga',           season:'2025', usaGrupos:false, ratingsWC:false},
-  {id:'fifa.worldq.uefa',    nombre:'Clasif. UEFA',        tipo:'clasificatoria', season:'2025', usaGrupos:false, ratingsWC:true },
-  {id:'fifa.worldq.conmebol',nombre:'Clasif. Conmebol',    tipo:'clasificatoria', season:'2025', usaGrupos:false, ratingsWC:true },
-  {id:'fifa.worldq.concacaf',nombre:'Clasif. Concacaf',    tipo:'clasificatoria', season:'2025', usaGrupos:false, ratingsWC:true },
-  {id:'fifa.worldq.caf',     nombre:'Clasif. CAF',         tipo:'clasificatoria', season:'2025', usaGrupos:false, ratingsWC:true },
-  {id:'fifa.worldq.afc',     nombre:'Clasif. AFC',         tipo:'clasificatoria', season:'2025', usaGrupos:false, ratingsWC:true },
-];
-const CKEY='mundial_comp_v1';
-let COMP=COMPETITIONS[0];
-function loadComp(){ try{const id=localStorage.getItem(CKEY); const c=COMPETITIONS.find(x=>x.id===id); if(c)COMP=c;}catch(e){} }
-function refreshTeamList(){ /* Task 3: se volverá dinámico por liga; por ahora mantiene el datalist del Mundial */ }
-function setComp(id){
-  const c=COMPETITIONS.find(x=>x.id===id); if(!c)return;
-  COMP=c; try{localStorage.setItem(CKEY,id);}catch(e){}
-  // limpiar resultado y contexto del partido anterior
-  if(typeof out!=='undefined'&&out) out.classList.add('hidden');
-  if(typeof mTitle!=='undefined'&&mTitle) mTitle.innerHTML='Carga un partido y toca <span style="color:var(--acc)">Simular</span><small id="mCtx"></small>';
-  if(typeof ctx!=='undefined'&&ctx) ctx.value='';
-  ctxMsg('','mut');
-  refreshTeamList();
-}
-function initCompSelector(){
-  const sel=document.getElementById('compSel'); if(!sel)return;
-  sel.innerHTML=COMPETITIONS.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  sel.value=COMP.id;
-}
+
 
 // nombres en inglés para emparejar con TheSportsDB
 const EN_NAME={
@@ -350,14 +318,16 @@ function run(){
   // aclaración cuando el marcador exacto más probable no coincide con el favorito del 1X2
   const favO = R.h>=R.d&&R.h>=R.a?'H':(R.a>=R.d?'A':'D');
   const bestO = best.i>best.j?'H':(best.i===best.j?'D':'A');
+  let cons=null;
   if(favO!==bestO){
     const favName = favO==='H'?('gane '+A) : favO==='A'?('gane '+B) : 'sea empate';
-    let cons=null; for(const s of R.scores){ const o=s.i>s.j?'H':(s.i===s.j?'D':'A'); if(o===favO){cons=s;break;} }
+    for(const s of R.scores){ const o=s.i>s.j?'H':(s.i===s.j?'D':'A'); if(o===favO){cons=s;break;} }
     predScore.innerHTML += `<div style="font-size:12px;color:var(--mut);font-weight:400;margin-top:8px;line-height:1.45;letter-spacing:0">`+
       `El marcador exacto más probable es <b style="color:var(--txt)">${best.i}-${best.j}</b>, pero sumando todos los resultados lo más probable es que <b style="color:var(--txt)">${favName}</b> (${pc(Math.max(R.h,R.d,R.a))}). `+
       (cons?`Con ese resultado, el marcador más probable es <b style="color:var(--txt)">${cons.i}-${cons.j}</b> (${pc(cons.p)}). `:'')+
       `Es normal: el empate concentra su probabilidad en pocos marcadores y la victoria se reparte entre muchos.</div>`;
   }
+  const si2=cons?cons.i:null, sj2=cons?cons.j:null, sp2=cons?cons.p:null;
   saveMsg.textContent='';
 
   // ===== mercados extra =====
@@ -447,6 +417,7 @@ function run(){
     pH:R.h, pD:R.d, pA:R.a,
     predResult: R.h>=R.d&&R.h>=R.a ? 'H' : (R.a>=R.d ? 'A' : 'D'),
     si:R.scores[0].i, sj:R.scores[0].j, sp:R.scores[0].p,
+    si2, sj2, sp2,
     xgH:R.xgH, xgA:R.xgA, o25:R.o25, btts:R.btts,
     predPossA:possA, predShotsA:shA, predShotsB:shB, predCornersTot:coTot, predYellowTot:yel,
     ko: KO ? {on:true, advH:KO.advH, advA:KO.advA, pProrroga:KO.pProrroga, pPenales:KO.pPenales, penH:KO.penH} : {on:false}
@@ -459,6 +430,7 @@ function run(){
   SHARE={
     A,B,ctx:ctx.value, h:R.h,d:R.d,a:R.a,
     score:`${A} ${best.i}-${best.j} ${B}`, scoreP:best.p,
+    score2: cons?(`${A} ${cons.i}-${cons.j} ${B}`):null, score2P:cons?cons.p:null,
     xgH:R.xgH, xgA:R.xgA,
     goals: gMid? (gMid.lab+' ('+pc(gMid.p)+')') : '',
     btts: R.btts>=0.5?('Sí ('+pc(R.btts)+')'):('No ('+pc(1-R.btts)+')'),
@@ -559,6 +531,7 @@ function buildShareCard(S){
     `<div style="text-align:center;background:#211d12;border-radius:10px;padding:12px;margin-bottom:14px">`+
       `<div style="font-size:11px;color:#b0a890">Marcador más probable</div>`+
       `<div style="font-size:24px;font-weight:800;color:#e6b53c">${S.score} <span style="font-size:13px;color:#b0a890">${pct(S.scoreP)}</span></div>`+
+      (S.score2?`<div style="font-size:13px;color:#b0a890;margin-top:2px">2.º: ${S.score2} <span style="font-size:11px">${pct(S.score2P)}</span></div>`:'')+
       `<div style="font-size:12px;color:#b0a890;margin-top:4px">Goles esperados: ${S.xgH.toFixed(2)} – ${S.xgA.toFixed(2)}</div>`+
     `</div>`+
     `<div style="font-size:12px;color:#ffd76a;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Mercados más probables</div>`+
@@ -668,6 +641,10 @@ function persistHist(){localStorage.setItem(HKEY,JSON.stringify(HIST));}
 // construye una predicción corriendo el modelo real (mismas probabilidades que el simulador)
 function buildPred(A,B,ctx,lamH,lamA,rho,realA,realB){
   const R=simulate(lamH,lamA,rho); const best=R.scores[0];
+  const favO2 = R.h>=R.d&&R.h>=R.a?'H':(R.a>=R.d?'A':'D');
+  const bestO2 = best.i>best.j?'H':(best.i===best.j?'D':'A');
+  let cons2=null;
+  if(favO2!==bestO2){ for(const s of R.scores){ const o=s.i>s.j?'H':(s.i===s.j?'D':'A'); if(o===favO2){cons2=s;break;} } }
   const possA=possShare(lamH,lamA);
   const shA=teamShots(lamH,possA), shB=teamShots(lamA,1-possA);
   const coTot=teamCorners(shA)+teamCorners(shB);
@@ -676,6 +653,7 @@ function buildPred(A,B,ctx,lamH,lamA,rho,realA,realB){
     pH:R.h,pD:R.d,pA:R.a,
     predResult: R.h>=R.d&&R.h>=R.a ? 'H' : (R.a>=R.d ? 'A':'D'),
     si:best.i,sj:best.j,sp:best.p,
+    si2:cons2?cons2.i:null, sj2:cons2?cons2.j:null, sp2:cons2?cons2.p:null,
     xgH:R.xgH,xgA:R.xgA,o25:R.o25,btts:R.btts,
     predPossA:possA, predShotsA:shA, predShotsB:shB, predCornersTot:coTot, predYellowTot:4.2,
     actualA:realA,actualB:realB
@@ -1173,10 +1151,12 @@ function loadBulkResults(){
 function judge(it){
   const a=it.actualA, b=it.actualB;
   const realRes = a>b?'H':(a===b?'D':'A');
+  const hitScore2 = it.si2!=null && it.sj2!=null && it.si2===a && it.sj2===b;
   const j={
     realRes,
     hitRes: it.predResult===realRes,
-    hitScore: it.si===a && it.sj===b,
+    hitScore: (it.si===a && it.sj===b) || hitScore2,
+    hitScore2,
     hitOU: (it.o25>=0.5) === ((a+b)>2.5),
     hitBtts: (it.btts>=0.5) === (a>0&&b>0),
     predTot: it.xgH+it.xgA, realTot: a+b
@@ -1323,7 +1303,8 @@ function renderHistory(){
     // ---- detalle plegado ----
     let detail;
     if(!done){
-      detail = `<div class="hist-meta">${it.ctx||''} · pred: ${predTxt} · marcador ${it.si}-${it.sj} (${pc(it.sp)}) · O2.5 ${pc(it.o25)} · BTTS ${pc(it.btts)}</div>`+
+      detail = `<div class="hist-meta">${it.ctx||''} · pred: ${predTxt} · marcador ${it.si}-${it.sj} (${pc(it.sp)})`+
+        (it.si2!=null?` · 2.º: ${it.si2}-${it.sj2} (${pc(it.sp2)})`:'')+` · O2.5 ${pc(it.o25)} · BTTS ${pc(it.btts)}</div>`+
         koLine(it)+
         `<div class="res-in"><span>Resultado real:</span>`+
         `<input type="number" min="0" id="ra_${it.id}" placeholder="${it.A.slice(0,3)}">`+
@@ -1356,10 +1337,12 @@ function renderHistory(){
         }
       }
       const ouP=it.o25>=0.5?'Over 2.5':'Under 2.5', btP=it.btts>=0.5?'Sí':'No';
-      detail = `<div class="hist-meta">${it.ctx||''} · pred: ${predTxt} · marcador ${it.si}-${it.sj} (${pc(it.sp)})</div>`+
+      const scoreLabel = it.si2!=null && j.hitScore2 ? 'Marcador exacto (2.º)' : 'Marcador exacto';
+      detail = `<div class="hist-meta">${it.ctx||''} · pred: ${predTxt} · marcador ${it.si}-${it.sj} (${pc(it.sp)})`+
+        (it.si2!=null?` · 2.º: ${it.si2}-${it.sj2} (${pc(it.sp2)})`:'')+`</div>`+
         koLine(it)+
         `<div class="badges" style="margin-top:6px">`+
-          bdg(j.hitRes,'Resultado')+bdg(j.hitScore,'Marcador exacto')+bdg(j.hitOU,'Goles: '+ouP+' · hubo '+(it.actualA+it.actualB))+bdg(j.hitBtts,'Ambos marcan: '+btP)+
+          bdg(j.hitRes,'Resultado')+bdg(j.hitScore,scoreLabel)+bdg(j.hitOU,'Goles: '+ouP+' · hubo '+(it.actualA+it.actualB))+bdg(j.hitBtts,'Ambos marcan: '+btP)+
         `</div>`+extra;
     }
     return row + `<div class="hist-detail hidden" id="det_${it.id}">${detail}</div>`;
@@ -2032,7 +2015,6 @@ function renderCartSlip(){
   el.innerHTML=html;
 }
 
-loadComp(); initCompSelector();
 loadHist(); seedHistory(); computeLearning(); renderHistory();
 loadBracket(); loadConfirmed(); loadForm(); loadPicks(); loadSavedCarts();
 
