@@ -1,8 +1,8 @@
 // Service worker de Rocky Predictor · Mundial 2026 (PWA)
 // Estrategia: network-first para el cascarón (siempre trae lo último si hay internet),
 // con caché de respaldo para uso sin conexión. Sube el número de versión al desplegar cambios.
-const CACHE = 'rocky-predictor-v2';
-const ASSETS = ['./', './index.html', './engine.js', './logo.js', './favicon.ico', './favicon.png', './manifest.json'];
+const CACHE = 'rocky-predictor-v3';
+const ASSETS = ['./', './index.html', './engine.js', './logo.js', './favicon.ico', './favicon.png', './manifest.json', './html2canvas.min.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

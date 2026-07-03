@@ -505,10 +505,26 @@ function downloadImage(){
   if(typeof html2canvas!=='function'){ alert('No pude cargar la librería de imagen (¿sin internet?). Usa el botón 📄 PDF.'); return; }
   if(!SHARE){ alert('Simula un partido primero.'); return; }
   const node=buildShareCard(SHARE);
-  html2canvas(node,{backgroundColor:null, scale:2}).then(canvas=>{
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  html2canvas(node,{backgroundColor:null, scale:2, useCORS:true, logging:false}).then(canvas=>{
     node.remove();
     const A=(SHARE.A||'A').replace(/[^a-z0-9]/gi,''), B=(SHARE.B||'B').replace(/[^a-z0-9]/gi,'');
-    const a=document.createElement('a'); a.download='rocky-predictor-'+A+'-vs-'+B+'.png'; a.href=canvas.toDataURL('image/png'); a.click();
+    const filename='rocky-predictor-'+A+'-vs-'+B+'.png';
+    canvas.toBlob(blob=>{
+      if(!blob){ alert('No se pudo generar la imagen.'); return; }
+      if(isIOS && navigator.share && navigator.canShare){
+        try {
+          const file=new File([blob], filename, {type:'image/png'});
+          if(navigator.canShare({files:[file]})){ navigator.share({files:[file], title:'Rocky Predictor'}); return; }
+        } catch(e) {}
+      }
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    },'image/png');
   }).catch(()=>{ node.remove(); alert('No se pudo generar la imagen. Usa el botón 📄 PDF.'); });
 }
 // arma una tarjeta diseñada con lo más probable de cada mercado
